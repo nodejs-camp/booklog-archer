@@ -48,9 +48,9 @@ var posts = [{
 
 var count = 0;
 
-app.all('*', function(req, res, next){
-	console.log('Count: ' + count++); // 計算灠覽次數
-	console.log(req);
+//app.all('*', function(req, res, next){
+	//console.log('Count: ' + count++); // 計算灠覽次數
+	//console.log(req);
 
 	//if (req.headers.host === 'localhost:3000') {
 		//console.log("Access denied.");
@@ -58,11 +58,74 @@ app.all('*', function(req, res, next){
 		//next(); // 告訴 express 符合此處後繼續往下比對路徑
 	//}
 	
-	next(); // 告訴 express 符合此處後繼續往下比對路徑
+	//next(); // 告訴 express 符合此處後繼續往下比對路徑
+//});
+
+app.all('*', function(req, res, next){
+  if (!req.get('Origin')) return next();
+  // use "*" here to accept any origin
+  res.set('Access-Control-Allow-Origin', '*'); // set -> 設定 http 的檔頭
+  res.set('Access-Control-Allow-Methods', 'PUT');
+  res.set('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type');
+  // res.set('Access-Control-Allow-Max-Age', 3600);
+  if ('OPTIONS' == req.method) return res.send(200);
+  next();
 });
+
 
 app.get('/welcome', function(req, res){
 	res.render('index'); // 從 views folder 中讀取 index.jade 檔案 (app.set('views', __dirname + '/views');)
+});
+
+// Workflow
+app.get('/download', function(req, res){
+	var events = require('events');
+	var workflow = new events.EventEmitter(); // 截入到記憶體中，類別實例化
+	
+
+	workflow.outcome = {
+		success: false,
+	};
+	
+	workflow.on('validate', function(){
+		var password = req.query.password;
+
+		if (password === '123456') {
+			return workflow.emit('success');
+		};
+		return workflow.emit('error');
+	});
+
+	workflow.on('success', function(){
+		workflow.outcome.success = true;
+		workflow.outcome.redirect = { 
+			url: '/welcome'
+		};
+
+		workflow.emit('response');
+	});
+
+	workflow.on('error', function(){
+		//++count;
+		workflow.outcome.success = false;
+		workflow.emit('response');
+		
+	});
+
+	workflow.on('response', function(){
+		res.send(workflow.outcome);
+
+		//console.log('count: ' + count);
+
+		//if (count===3) {
+			//res.send(workflow.outcome);
+		//}else{
+			//res.send(workflow.outcome);
+		//}
+
+	});
+
+	return workflow.emit('validate');
 });
 
 app.get('/post', function(req, res){

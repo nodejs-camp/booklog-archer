@@ -2,6 +2,7 @@ extend layout
 
 block content
 
-	ul
+	dl
 		each item in post
-			li: =item.subject
+			dt: =item.subject
+			dd: =item.content
