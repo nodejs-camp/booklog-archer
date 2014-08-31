@@ -38,7 +38,14 @@ app.get('/', function(req, res){
   res.render('users', { users: users });
 });
 
-var posts = [];
+var posts = [{
+	subject: "Hello",
+	content: "Hi"
+},{
+	subject: "World",
+	content: "Hi"
+}];
+
 var count = 0;
 
 app.all('*', function(req, res, next){
@@ -55,8 +62,15 @@ app.all('*', function(req, res, next){
 });
 
 app.get('/welcome', function(req, res){
-	res.render('index'); // 從 views folder 中讀取 index.jade 檔案
+	res.render('index'); // 從 views folder 中讀取 index.jade 檔案 (app.set('views', __dirname + '/views');)
 });
+
+app.get('/post', function(req, res){
+	res.render('post', { // 從 views folder 中讀取 post.jade 檔案
+		post: posts // 把 posts array 丟給 post.jada
+	}); 
+});
+
 app.get('/1/post', function(req, res){
 
 	res.send(posts);
