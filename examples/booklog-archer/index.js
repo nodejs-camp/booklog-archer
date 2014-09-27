@@ -30,8 +30,21 @@ var postSchema = new mongoose.Schema({
     content: String
 });
 
+// 20140927 - start
+
+var userSchema = new mongoose.Schema({
+    username: { type: String, unique: true },
+    displayName: { type: String, unique: true },
+    email: { type: String, unique: true },
+    timeCreated: { type: Date, default: Date.now },
+    facebook: {}
+});
+
+// 20140927 - end
+
 app.db = {
-	posts: mongoose.model('Post', postSchema)
+	posts: mongoose.model('Post', postSchema),
+	users: mongoose.model('User', userSchema)
 };
 
 
@@ -139,6 +152,7 @@ app.get('/download', function(req, res){ //此命名風格為網頁
 
 // 20140927 - start
 
+var session = require('express-session');
 var passport = require('passport')
   , FacebookStrategy = require('passport-facebook').Strategy;
 
@@ -150,9 +164,24 @@ passport.use(new FacebookStrategy({
   
   function(accessToken, refreshToken, profile, done) {
     console.log(profile);
+    return done(null, profile);
   }
-  
+
 ));
+
+app.use(session({ secret: 'keyboard cat'}));
+app.use(passport.initialize());
+app.use(passport.session());
+
+passport.serializeUser(function(user, done) {
+  done(null, user.id);
+});
+
+passport.deserializeUser(function(id, done) {
+  User.findById(id, function(err, user) {
+    done(err, user);
+  });
+});
 
 // Redirect the user to Facebook for authentication.  When complete,
 // Facebook will redirect the user back to the application at
@@ -180,6 +209,21 @@ app.all('*', function(req, res, next){
   next();
 });
 
+// 20140927 - start
+
+app.get('/', function(req, res, next) {
+	if (req.isAuthenticated()) {
+		next();
+	} else {
+		res.render('login');
+	}
+});
+
+app.get('/', function(req, res) {
+	res.render('index');
+});
+
+// 20140927 - end
 
 //app.all('*', function(req, res, next){ //app.all不管所有協定都去跑，*代表所有url也是
 	//console.log('count'+count++);//計算瀏覽次數
