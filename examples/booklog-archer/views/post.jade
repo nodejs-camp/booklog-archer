@@ -1,8 +1,8 @@
 extend layout
 
 block content
-
-	dl
+	ul
 		each item in post
-			dt: =item.subject
-			dd: =item.content
+			li: = item.subject
+			li: = item.content
+			h1: = item.content
