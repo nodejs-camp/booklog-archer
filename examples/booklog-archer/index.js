@@ -27,7 +27,10 @@ db.once('open', function callback () {
 
 var postSchema = new mongoose.Schema({
     subject: { type: String, default: ''},
-    content: String
+    content: String,
+
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User'}
+
 });
 
 // 20140927 - start
@@ -56,132 +59,92 @@ app.set('views', __dirname + '/views'); // 從view folder去讀取頁面
 // (although you can still mix and match)
 app.set('view engine', 'jade');
 
-function User(name, email) {
-  this.name = name;
-  this.email = email;
-}
+//function User(name, email) {
+  //this.name = name;
+  //this.email = email;
+//}
 
 // Dummy users
-var users = [
-    new User('tj', 'tj@vision-media.ca')
-  , new User('ciaran', 'ciaranj@gmail.com')
-  , new User('aaron', 'aaron.heckmann+github@gmail.com')
-];
+//var users = [
+    //new User('tj', 'tj@vision-media.ca')
+  //, new User('ciaran', 'ciaranj@gmail.com')
+  //, new User('aaron', 'aaron.heckmann+github@gmail.com')
+//];
 
 
-app.get('/', function(req, res){
-  res.render('users', { users: users });
-});
+//app.get('/', function(req, res){
+  //res.render('users', { users: users });
+//});
 
-var posts = [];
+//var posts = [];
 
-var postcontent = [{
-	subject: "subject",
-	content: "content"
-},{
-	subject: "Hello",
-	content: "hi"
-}];
-
-var bodyParser = require('body-parser'); //require等於import events class，因為他是外部模組(npm body-parser模組)
-app.use(bodyParser.urlencoded({
-	extended: true
-	}));
+//var postcontent = [{
+	//subject: "subject",
+	//content: "content"
+//},{
+	//subject: "Hello",
+	//content: "hi"
+//}];
 
 var count = 0;
 
-app.get('/welcome', function(req, res){ 
-	res.render('index'); //從view folder讀取index.jade檔案
-	
-});
+var bodyParser = require('body-parser'); //require等於import events class，因為他是外部模組(npm body-parser模組)
 
-app.get('/post', function(req, res){
-	res.render('post',{
-		post: postcontent
-	}); //從view folder讀取post.jade檔案
-	
-});
-
-var count = 0 ;
-
-app.get('/download', function(req, res){ //此命名風格為網頁
-	var events = require('events'); // require等於import events class，因為他是外部模組
-	var workflow = new events.EventEmitter(); //載入到記憶體中，類別實例化
-
-	workflow.outcome = {  //outcome 為一物件
-		success: false // tag & value
-	};
-
-	workflow.on('validate', function(){  //開始設定workflow狀態檢查
-		var password = req.query.password;  //在用API打時，url需要打成這樣http://localhost:3000/download?password=123456
-
-		if (password === '123456'){
-			return workflow.emit('success'); //emitter.emit(event, [arg1], [arg2], [...])方法
-			
-		};
-		return workflow.emit('error');
-	});
-
-	workflow.on('success', function(){
-		workflow.outcome.success = true;
-		workflow.outcome.redirect = {
-			url: '/weclome'
-		};
-		workflow.emit('response');
-	});
-
-	workflow.on('error', function(){
-		count ++; 
-		workflow.outcome.success = false;
-		workflow.emit('response');
-	});
-
-	workflow.on('response', function() {
-		console.log('count'+count);
-		if (count ===3) {
-			res.send(workflow.outcome);
-			console.log("吃屎吧");
-		}else{
-			res.send(workflow.outcome);
-			
-		};
-		});
-		return workflow.emit('validate');
-	});
-
-
-// 20140927 - start
 
 var session = require('express-session');
 var passport = require('passport')
   , FacebookStrategy = require('passport-facebook').Strategy;
 
-passport.use(new FacebookStrategy({
-    clientID: '1476262315989554',
-    clientSecret: 'a3a82a963cd9f48a8109eb96c258c7de',
-    callbackURL: "http://localhost:3000/auth/facebook/callback"
-  },
-  
-  function(accessToken, refreshToken, profile, done) {
-    console.log(profile);
-    return done(null, profile);
-  }
-
-));
+app.use(bodyParser.urlencoded({
+	extended: true
+}));
 
 app.use(session({ secret: 'keyboard cat'}));
 app.use(passport.initialize());
 app.use(passport.session());
 
 passport.serializeUser(function(user, done) {
-  done(null, user.id);
+  done(null, user);
 });
 
-passport.deserializeUser(function(id, done) {
-  User.findById(id, function(err, user) {
-    done(err, user);
-  });
+passport.deserializeUser(function(obj, done) {
+    done(null, obj);
 });
+
+passport.use(new FacebookStrategy({
+    clientID: '1476262315989554', //從 fb 取得
+    clientSecret: 'a3a82a963cd9f48a8109eb96c258c7de', //從 fb 取得
+    callbackURL: "http://localhost:3000/auth/facebook/callback"
+  },
+  
+  function(accessToken, refreshToken, profile, done) {
+
+	app.db.users.findOne({"facebook._json.id": profile._json.id}, function(err, user) {
+		if (err) {
+			var obj = {
+			    username: profile.username,
+			    displayName: profile.displayName,
+			    email: '',
+			    facebook: profile
+			   };
+
+			var doc = new app.db.users(obj);
+		   	doc.save();
+
+		   	user = doc;
+		}
+
+		return done(null, user); // verify
+	});
+
+    //console.log(profile);
+
+    //console.log(user);
+
+  }
+
+));
+
 
 // Redirect the user to Facebook for authentication.  When complete,
 // Facebook will redirect the user back to the application at
@@ -225,6 +188,68 @@ app.get('/', function(req, res) {
 
 // 20140927 - end
 
+app.get('/download', function(req, res){ //此命名風格為網頁
+	var events = require('events'); // require等於import events class，因為他是外部模組
+	var workflow = new events.EventEmitter(); //載入到記憶體中，類別實例化
+
+	workflow.outcome = {  //outcome 為一物件
+		success: false // tag & value
+	};
+
+	workflow.on('validate', function(){  //開始設定workflow狀態檢查
+		var password = req.query.password;  //在用API打時，url需要打成這樣http://localhost:3000/download?password=123456
+
+		if (password === '123456'){
+			return workflow.emit('success'); //emitter.emit(event, [arg1], [arg2], [...])方法
+			
+		};
+		return workflow.emit('error');
+	});
+
+	workflow.on('success', function(){
+		workflow.outcome.success = true;
+		workflow.outcome.redirect = {
+			url: '/weclome'
+		};
+		workflow.emit('response');
+	});
+
+	workflow.on('error', function(){
+		count ++; 
+		workflow.outcome.success = false;
+		workflow.emit('response');
+	});
+
+	workflow.on('response', function() {
+		console.log('count'+count);
+		if (count ===3) {
+			res.send(workflow.outcome);
+			console.log("iiiii");
+		}else{
+			res.send(workflow.outcome);
+			
+		};
+		});
+		return workflow.emit('validate');
+	});
+
+app.get('/welcome', function(req, res){ 
+	res.render('index'); //從view folder讀取index.jade檔案
+	
+});
+
+app.get('/post', function(req, res){
+	res.render('post',{
+		post: postcontent
+	}); //從view folder讀取post.jade檔案
+	
+});
+
+app.get('/logout', function(req, res){
+  req.logout();
+  res.redirect('/');
+});
+
 //app.all('*', function(req, res, next){ //app.all不管所有協定都去跑，*代表所有url也是
 	//console.log('count'+count++);//計算瀏覽次數
 	/*if (req.headers.host === 'localhost:3000') {
@@ -240,10 +265,13 @@ app.get('/', function(req, res) {
 app.get('/1/post', function(req, res){//call back function，前面行為set url執行完，再將後面匿名函數當作參數執行，req為express所給的物件
 	var posts = req.app.db.posts;
 
-	posts.find(function(err, posts) {
+	posts
+	.find() 
+	.populate('userId')
+	.exec(function(err, posts){
 		res.send({posts: posts});	
 	});
-
+		
 	/*var result = {
 		titl: "Test",
 		content: "Foo"
@@ -252,8 +280,19 @@ app.get('/1/post', function(req, res){//call back function，前面行為set url
 	//res.send(result);
 });  
 
+// 20140927 - start
+app.post('/1/post', function(req, res, next) {
+	if (req.isAuthenticated()) {
+		next();
+	} else {
+		res.render('login');
+	}
+});
+// 20140927 - end
+
 app.post('/1/post', function(req, res){//call back function，前面為set url，後面為執行function
 	var posts = req.app.db.posts;
+	var userId = req.user._id;
 
 	var subject;
 	var content;
@@ -268,10 +307,11 @@ app.post('/1/post', function(req, res){//call back function，前面為set url�
 	}
 
 	var data = {
+		userId: userId,
 		subject: subject,
 		content: content
 	};
-	console.log(data);
+	console.log("aaa: " + data);
 	var post = new posts(data);
 	post.save();
 
