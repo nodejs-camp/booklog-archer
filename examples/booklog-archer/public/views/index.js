@@ -75,7 +75,8 @@ app.Post = Backbone.Model.extend({
  app.PostView = Backbone.View.extend({ //給需要處理的區塊一個名稱
     el: '#blog-post', //element id
     events: { //定義區塊事件
-      'click .btn-filter': 'performFilter'
+      'click .btn-filter': 'performFilter',
+      'click .btn-format': 'performFormat'
     },
 
     initialize: function() { //實例化model
@@ -97,8 +98,14 @@ app.Post = Backbone.Model.extend({
     performFilter: function() {
         this.model.query = '?sort=date';
         this.model.fetch();
-    }
+    },
 
+    performFormat: function() {
+        this.$el.find('.post-date').each(function () {
+          var me = $(this);
+          me.html( moment( me.text() ).fromNow() );
+        });
+    }
   });
 
 /**
