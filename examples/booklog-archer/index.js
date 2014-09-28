@@ -92,7 +92,7 @@ app.set('view engine', 'jade');
 var count = 0;
 
 var bodyParser = require('body-parser'); //require等於import events class，因為他是外部模組(npm body-parser模組)
-
+var jsonParser = bodyParser.json();
 
 var session = require('express-session');
 var passport = require('passport')
@@ -308,21 +308,23 @@ app.post('/1/post', function(req, res, next) {
 });
 // 20140927 - end
 
-app.post('/1/post', function(req, res){//call back function，前面為set url，後面為執行function
+app.post('/1/post', jsonParser, function(req, res){//call back function，前面為set url，後面為執行function
 	var posts = req.app.db.posts;
 	var userId = req.user._id;
 
 	var subject;
 	var content;
 
-	if (typeof(req.body.subject) === 'undefined') {
-		subject = req.query.subject;
-		content = req.query.content;
+	//if (typeof(req.body.subject) === 'undefined') {
+		//subject = req.query.subject;
+		//content = req.query.content;
+	//} else {
+		//subject = req.body.subject;
+		//content = req.body.content;		
+	//}
 
-	} else {
-		subject = req.body.subject;
-		content = req.body.content;		
-	}
+	subject = req.body.subject;
+	content = req.body.content;
 
 	var data = {
 		userId: userId,
