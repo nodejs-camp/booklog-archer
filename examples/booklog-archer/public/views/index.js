@@ -8,7 +8,8 @@
  **/
 app.Search = Backbone.Model.extend({  
   url: function() {
-    return 'http://localhost:3000/1/post/tag/' + this.attributes.tag
+    //return 'http://localhost:3000/1/post/tag/' + this.attributes.tag
+    return 'http://localhost:3000/1/post/tag/' + this.tag
   },
   tag: '',
   defaults: {
@@ -24,7 +25,11 @@ app.Search = Backbone.Model.extend({
 });
 
 app.Post = Backbone.Model.extend({  
-  url: 'http://localhost:3000/1/post',
+  //url: 'http://localhost:3000/1/post',
+  url: function() {
+    return 'http://localhost:3000/1/post' + this.query
+  },
+  query: '',
   defaults: {
     success: false,
     errors: [],
@@ -46,19 +51,19 @@ app.Post = Backbone.Model.extend({
     events: {
       'click .btn-search': 'performSearch'
     },
+
     initialize: function() {
         this.model = new app.Search();
         this.template = _.template($('#tmpl-results').html());
-
         this.model.bind('change', this.render, this);        
     },
+
     render: function() {
         var data = this.template(this.model.attributes);
-
         $('#search-result').html(data);
-
         return this;
     },
+
     performSearch: function() {
       var tag = this.$el.find('#search-tag').val();
       alert(tag);
@@ -67,24 +72,33 @@ app.Post = Backbone.Model.extend({
     }
   });
 
-  app.PostView = Backbone.View.extend({
-    el: '#blog-post',
-    events: {
+ app.PostView = Backbone.View.extend({ //給需要處理的區塊一個名稱
+    el: '#blog-post', //element id
+    events: { //定義區塊事件
+      'click .btn-filter': 'performFilter'
     },
-    initialize: function() {
-        this.model = new app.Post();
-        this.template = _.template($('#tmpl-post').html());
 
-        this.model.bind('change', this.render, this);
+    initialize: function() { //實例化model
+        this.model = new app.Post();
+        this.template = _.template($('#tmpl-post').html());//實例化的template在index.jade去增加underscope
+
+        this.model.bind('change', this.render, this);//只要data model 有變動就去呼叫render
         
-        this.model.fetch();
+        this.model.fetch(); //會呼叫model api
     },
+
     render: function() {
         var data = this.template(this.model.attributes);
 
         this.$el.html(data);
         return this;
+    },
+
+    performFilter: function() {
+        this.model.query = '?sort=date';
+        this.model.fetch();
     }
+
   });
 
 /**

@@ -29,6 +29,7 @@ var postSchema = new mongoose.Schema({
     subject: { type: String, default: ''},
     content: String,
 
+    timeCreated: { type: Date, default: Date.now},
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User'}
 
 });
@@ -328,7 +329,7 @@ app.post('/1/post', function(req, res){//call back function，前面為set url�
 		subject: subject,
 		content: content
 	};
-	console.log("aaa: " + data);
+	// console.log("aaa: " + data);
 	var post = new posts(data);
 	post.save();
 
@@ -365,12 +366,24 @@ app.post('/1/post', function(req, res){//call back function，前面為set url�
 });  */
 
 //此命名風格為API，只回傳給JSON
-app.get('/1/post', function(req, res){//call back function，前面行為set url執行完，再將後面匿名函數當作參數執行，req為express所給的物件
+app.get('/1/post', function(req, res){ //call back function，前面行為set url執行完，再將後面匿名函數當作參數執行，req為express所給的物件
 	var posts = req.app.db.posts;
+	var sort = req.query.sort; // ?sort=date
+	var options = {};
+
+	// Default options
+	options = {
+		sort: 'timeCreated'
+	};
+
+	if (sort === 'date') {
+		options.sort = '-timeCreated'
+	}
 
 	posts
-	.find() 
+	.find({}) 
 	.populate('userId')
+	.sort(options.sort)
 	.exec(function(err, posts){
 		res.send({posts: posts});	
 	});
