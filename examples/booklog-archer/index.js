@@ -33,6 +33,8 @@ var postSchema = new mongoose.Schema({
 
 });
 
+postSchema.index({ content: 'text' });
+
 // 20140927 - start
 
 var userSchema = new mongoose.Schema({
@@ -120,7 +122,7 @@ passport.use(new FacebookStrategy({
   function(accessToken, refreshToken, profile, done) {
 
 	app.db.users.findOne({"facebook._json.id": profile._json.id}, function(err, user) {
-		if (err) {
+		if (!user) { // 如果 db 中有存在相同的記錄，則不在 insert
 			var obj = {
 			    username: profile.username,
 			    displayName: profile.displayName,
@@ -261,24 +263,39 @@ app.get('/logout', function(req, res){
 	
 //});
 
-//此命名風格為API，只回傳給JSON
-app.get('/1/post', function(req, res){//call back function，前面行為set url執行完，再將後面匿名函數當作參數執行，req為express所給的物件
+ app.put('/1/post/:postId', function(req, res){ //uri :後面代的為參數
+	var id = req.params.postId;
+	var posts = req.app.db.posts;
+
+	posts.findOne({_id: id}, function(err, post) {
+		res.send({post: post});	
+	});
+	//res.send("updated a post"+id);
+
+	/*var result = {
+		titl: "Test",
+		content: "put"
+	}; //{}為JS的物件
+	res.send(result); */
+}); 
+
+app.get('/1/post/tag/:tag', function(req, res){
+	var tag = req.params.tag;
+
+	// TBD:
+	console.log('Search ...');
+
 	var posts = req.app.db.posts;
 
 	posts
-	.find() 
-	.populate('userId')
-	.exec(function(err, posts){
-		res.send({posts: posts});	
-	});
-		
-	/*var result = {
-		titl: "Test",
-		content: "Foo"
-	}; //{}為JS的物件 */
-	//res.send({post: posts});	
-	//res.send(result);
-});  
+    .find( { $text: { $search: tag } } )
+    .exec(function(err, posts) {
+    	if (err) return console.log(err);
+    	console.log('Search Response ...' + posts);
+        res.send({posts: posts});
+    });
+
+});
 
 // 20140927 - start
 app.post('/1/post', function(req, res, next) {
@@ -347,21 +364,26 @@ app.post('/1/post', function(req, res){//call back function，前面為set url�
 	res.send(result);
 });  */
 
-app.put('/1/post/:postId', function(req, res){ //uri :後面代的為參數
-	var id = req.params.postId;
+//此命名風格為API，只回傳給JSON
+app.get('/1/post', function(req, res){//call back function，前面行為set url執行完，再將後面匿名函數當作參數執行，req為express所給的物件
 	var posts = req.app.db.posts;
 
-	posts.findOne({_id: id}, function(err, post) {
-		res.send({post: post});	
+	posts
+	.find() 
+	.populate('userId')
+	.exec(function(err, posts){
+		res.send({posts: posts});	
 	});
-	//res.send("updated a post"+id);
-
+		
 	/*var result = {
 		titl: "Test",
-		content: "put"
-	}; //{}為JS的物件
-	res.send(result); */
+		content: "Foo"
+	}; //{}為JS的物件 */
+	//res.send({post: posts});	
+	//res.send(result);
 }); 
+
+
 
 app.delete('/1/post', function(req, res){
 	var posts = req.app.db.posts;
