@@ -98,6 +98,8 @@ var session = require('express-session');
 var passport = require('passport')
   , FacebookStrategy = require('passport-facebook').Strategy;
 
+var events = require('events'); // require等於import events class，因為他是外部模組
+
 app.use(bodyParser.urlencoded({
 	extended: true
 }));
@@ -192,7 +194,7 @@ app.get('/', function(req, res) {
 // 20140927 - end
 
 app.get('/download', function(req, res){ //此命名風格為網頁
-	var events = require('events'); // require等於import events class，因為他是外部模組
+	
 	var workflow = new events.EventEmitter(); //載入到記憶體中，類別實例化
 
 	workflow.outcome = {  //outcome 為一物件
@@ -309,11 +311,18 @@ app.post('/1/post', function(req, res, next) {
 // 20140927 - end
 
 app.post('/1/post', jsonParser, function(req, res){//call back function，前面為set url，後面為執行function
+	
+	var workflow = new events.EventEmitter();
 	var posts = req.app.db.posts;
 	var userId = req.user._id;
 
 	var subject;
 	var content;
+
+	workflow.outcome = {
+		success: false,
+		errfor: {}
+	};
 
 	//if (typeof(req.body.subject) === 'undefined') {
 		//subject = req.query.subject;
@@ -323,19 +332,36 @@ app.post('/1/post', jsonParser, function(req, res){//call back function，前面
 		//content = req.body.content;		
 	//}
 
-	subject = req.body.subject;
-	content = req.body.content;
+	workflow.on('validation', function() {
+		subject = req.body.subject;
+		content = req.body.content;	
 
-	var data = {
-		userId: userId,
-		subject: subject,
-		content: content
-	};
-	// console.log("aaa: " + data);
-	var post = new posts(data);
-	post.save();
+		if (subject === '') {
+			workflow.outcome.errfor.subject = '必填欄位';
 
-	res.send({ status: 'OK'})
+			return res.send(workflow.outcome);
+		}
+
+		workflow.emit('savePost');
+	});
+
+	workflow.on('savePost', function() {
+		var data = {
+			userId: userId,
+			subject: subject,
+			content: content
+		};
+
+		var post = new posts(data);
+		post.save();
+
+		workflow.outcome.success = true;
+		workflow.outcome.data = post;
+
+		res.send(workflow.outcome);
+	});
+
+	return workflow.emit('validation');
 
 	/*var subject;
 	var content;
