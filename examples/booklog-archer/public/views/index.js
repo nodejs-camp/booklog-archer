@@ -55,6 +55,17 @@ app.SinglePost = Backbone.Model.extend({
   }
 });
 
+app.PurchasePost = Backbone.Model.extend({  
+  url: function() {
+    return 'http://localhost:3000/1/post/' + this.attributes.id + '/pay'
+  },
+  defaults: {
+    success: false,
+    errors: [],
+    errfor: {},
+  }
+});
+
 /**
  * VIEWS
  **/
@@ -122,11 +133,13 @@ app.SinglePost = Backbone.Model.extend({
     el: '#blog-post', //element id
     events: { //定義區塊事件
       'click .btn-filter': 'performFilter',
-      'click .btn-format': 'performFormat'
+      'click .btn-format': 'performFormat',
+      'click [data-purchase-for]': 'performPurchase'
     },
 
     initialize: function() { //實例化model
         this.model = new app.Post();
+        this.purchase = new app.PurchasePost();
         this.template = _.template($('#tmpl-post').html());//實例化的template在index.jade去增加underscope
 
         this.model.bind('change', this.render, this);//只要data model 有變動就去呼叫render
@@ -150,6 +163,21 @@ app.SinglePost = Backbone.Model.extend({
         this.$el.find('.post-date').each(function () {
           var me = $(this);
           me.html( moment( me.text() ).fromNow() );
+        });
+    },
+    performPurchase: function(event) {
+        var me = this.$el.find(event.target);
+        var postId = me.data('purchase-for');
+        var self = this;
+
+        this.purchase.set('id', postId); // PurchasePost 的 model
+        this.purchase.save(this.model.attributes, { // 如果沒有 id，則呼叫 post, 如果有 id, 則呼叫 put
+          success: function(model, response, options) {
+            alert('訂購成功。等候付款！')
+          },
+          error: function(model, response, options) {
+            alert('失敗')
+          }
         });
     }
   });

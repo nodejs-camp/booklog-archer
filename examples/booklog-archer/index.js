@@ -30,7 +30,10 @@ var postSchema = new mongoose.Schema({
     content: String,
 
     timeCreated: { type: Date, default: Date.now},
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User'}
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User'},
+
+    orders: [],
+    customers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
 
 });
 
@@ -209,7 +212,7 @@ app.get('/download', function(req, res){ //此命名風格為網頁
 	var workflow = new events.EventEmitter(); //載入到記憶體中，類別實例化
 
 	workflow.outcome = {  //outcome 為一物件
-		success: false // tag & value
+		success: false, // tag & value
 	};
 
 	workflow.on('validate', function(){  //開始設定workflow狀態檢查
@@ -277,13 +280,18 @@ app.get('/logout', function(req, res){
 	
 //});
 
- app.put('/1/post/:postId', function(req, res){ //uri :後面代的為參數
-	var id = req.params.postId;
-	var posts = req.app.db.posts;
+ app.put('/1/post/:postId', function(req, res) { //uri :後面代的為參數
+	//var id = req.params.postId;
+	//var posts = req.app.db.posts;
 
-	posts.findOne({_id: id}, function(err, post) {
-		res.send({post: post});	
-	});
+	//posts.findOne({_id: id}, function(err, post) {
+		//res.send({post: post});	
+	//});
+
+	var id = req.params.postId;
+
+	res.send("Update a post: " + id);
+
 	//res.send("updated a post"+id);
 
 	/*var result = {
@@ -454,6 +462,105 @@ app.delete('/1/post', function(req, res){
 	}; //{}為JS的物件
 	res.send(result);*/
 }); 
+
+/**
+ * PUT /1/post/:postId/pay
+ */
+app.put('/1/post/:postId/pay', function(req, res, next) {
+    var workflow = new events.EventEmitter();
+    var postId = req.params.postId;
+    var posts = req.app.db.posts;
+    
+    workflow.outcome = {
+    	success: false
+    };
+
+    workflow.on('validate', function() {
+        workflow.emit('createPayment');
+    });
+
+    workflow.on('createPayment', function() {
+		paypal_api.configure(config_opts);
+
+		var create_payment_json = {
+		            intent: 'sale',
+		            payer: {
+		                payment_method: 'paypal'
+		            },
+		            redirect_urls: {
+
+		                // http://localhost:3000/1/post/539eb886e8dbde4b39000007/paid?token=EC-4T17102178173001V&PayerID=QPPLBGBK5ZTVS
+		                return_url: 'https://localhost:3000/1/post/' + postId + '/paid',
+		                cancel_url: 'https://localhost:3000/1/post/' + postId + '/cancel'
+		            },
+		            transactions: [{
+		                amount: {
+		                    currency: 'TWD',
+		                    total: 99
+		                },
+		                description: '購買教學文章'
+		            }]
+		};
+
+		paypal_api.payment.create(create_payment_json, function (err, payment) {
+		    if (err) {
+		        console.log(err);
+		    }
+
+		    if (payment) {
+		        console.log("Create Payment Response");
+		        console.log(payment);
+		    }
+
+		    var order = {
+		    	userId: req.user._id,
+		    	paypal: payment
+		    };
+
+			posts
+			.findByIdAndUpdate(postId, { $addToSet: { orders: order } }, function(err, post) {
+				workflow.outcome.success = true;
+				workflow.outcome.data = post;
+				return res.send(workflow.outcome);
+			});
+		});
+    });
+
+    return workflow.emit('validate');
+});
+
+/**
+ * GET /1/post/:postId/paid
+ */
+app.get('/1/post/:postId/paid', function(req, res, next) {
+    var workflow = new events.EventEmitter();
+    var postId = req.params.postId;
+    var posts = req.app.db.posts;
+    var payerId = req.query.PayerID;
+    var paymentId;
+    
+    workflow.outcome = {
+    	success: false
+    };
+
+    workflow.on('validate', function() {
+        //paypal.payment.execute(paymentId, { payer_id: payerId }, function (err, payment) {
+        //    return workflow.emit('updateCustomer');
+        //});
+        return workflow.emit('updateCustomer');
+    });
+
+    workflow.on('updateCustomer', function() {
+		posts
+		.findByIdAndUpdate(postId, { $addToSet: { customers: req.user._id } }, function(err, post) {
+			workflow.outcome.success = true;
+			return res.send(workflow.outcome);
+		});
+    });
+
+    return workflow.emit('validate');
+});
+
 // change this to a better error handler in your code
 // sending stacktrace to users in production is not good
 app.use(function(err, req, res, next) {
