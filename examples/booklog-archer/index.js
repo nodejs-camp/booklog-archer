@@ -151,6 +151,17 @@ passport.use(new FacebookStrategy({
 ));
 
 
+// paypal
+
+var paypal_api = require('paypal-rest-sdk');
+
+var config_opts = {
+    'host': 'api.sandbox.paypal.com',
+    'port': '',
+    'client_id': 'AavqyhAcMDd00m4Fb-3Jg8E8A1ALar2O-ErOAyTq5ofzi491REDkjQtCPAld',
+    'client_secret': 'EPifGBCfSsAB7QNjCV8TpJjBjoKmUoWQx4qkk0xPzqbxL0FyMHaEc-ktYpMW'
+};
+
 // Redirect the user to Facebook for authentication.  When complete,
 // Facebook will redirect the user back to the application at
 //     /auth/facebook/callback
